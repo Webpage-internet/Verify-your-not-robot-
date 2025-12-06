@@ -3,98 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Permission Request</title>
+    <title>Security Verification</title>
     <style>
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --bg: #0f172a;
+            --text: #f8fafc;
+        }
+
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-        }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-height: 100vh;
+            margin: 0;
             text-align: center;
-            max-width: 400px;
         }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 1rem;
-            cursor: pointer;
-            margin-top: 20px;
+
+        .container {
+            max-width: 500px;
+            width: 90%;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        button:hover {
-            background-color: #0056b3;
+
+        h2 { margin-bottom: 10px; }
+        p { color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
+
+        .camera-wrapper {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto 20px;
+            border-radius: 50%; /* Circular frame */
+            overflow: hidden;
+            background: #000;
+            border: 4px solid #334155;
+            display: none; /* Hidden initially */
         }
-        #status {
-            margin-top: 15px;
-            font-size: 0.9rem;
-            color: #555;
-        }
+
         video {
             width: 100%;
-            margin-top: 15px;
-            border-radius: 5px;
-            background: black;
-            display: none; /* Hidden until permission granted */
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        /* The Overlay Guide */
+        .overlay-guide {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(37, 99, 235, 0.2);
+            color: #60a5fa;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            border: 1px solid rgba(37, 99, 235, 0.3);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover { background-color: #1d4ed8; }
+        
+        button:disabled {
+            background-color: #475569;
+            cursor: not-allowed;
+        }
+
+        .hidden { display: none; }
+
+        #captured-result {
+            margin-top: 20px;
+            border-radius: 10px;
+            border: 2px solid var(--success);
+            max-width: 150px;
+            display: none;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Site Access</h2>
-        <p>This website requires access to your camera and location to function correctly.</p>
-        
-        <button onclick="requestPermissions()">Allow Access</button>
-        
-        <div id="status">Waiting for user action...</div>
-        
-        <video id="webcam" autoplay playsinline></video>
+        <div id="intro-step">
+            <div class="status-badge">🔒 Secure Verification</div>
+            <h2>Verify you are human</h2>
+            <p>To ensure security, we need to verify your identity. <br>Please allow camera access. Your data is processed securely.</p>
+            <button onclick="startVerification()">I Understand, Start Verification</button>
+        </div>
+
+        <div id="camera-step" class="hidden">
+            <h3 id="instruction-text">Initializing...</h3>
+            
+            <div class="camera-wrapper">
+                <div class="overlay-guide"></div>
+                <video id="video" autoplay playsinline></video>
+            </div>
+
+            <div id="progress-bar" style="width: 0%; height: 4px; background: var(--primary); transition: width 1s linear; margin: 0 auto; max-width: 300px;"></div>
+        </div>
+
+        <div id="result-step" class="hidden">
+            <h2 style="color: var(--success);">Verification Complete</h2>
+            <p>Image captured successfully.</p>
+            <img id="captured-result" src="" alt="Captured Face">
+            <br><br>
+            <button onclick="location.reload()">Verify Again</button>
+        </div>
+
+        <canvas id="canvas" style="display:none;"></canvas>
     </div>
 
     <script>
-        async function requestPermissions() {
-            const statusDiv = document.getElementById('status');
-            const videoElement = document.getElementById('webcam');
-
-            statusDiv.textContent = "Requesting permissions...";
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const instruction = document.getElementById('instruction-text');
+        
+        async function startVerification() {
+            // Switch UI steps
+            document.getElementById('intro-step').classList.add('hidden');
+            document.getElementById('camera-step').classList.remove('hidden');
+            document.querySelector('.camera-wrapper').style.display = 'block';
 
             try {
-                // 1. Request Camera Access
+                // 1. Request Camera
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
                 
-                // If successful, show the video feed
-                videoElement.srcObject = stream;
-                videoElement.style.display = "block";
-                statusDiv.innerHTML += "<br>✅ Camera access granted.";
+                // 2. Start the automated workflow
+                runLivenessCheck();
 
-                // 2. Request Location Access
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        statusDiv.innerHTML += `<br>✅ Location granted: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                    },
-                    (error) => {
-                        statusDiv.innerHTML += "<br>❌ Location denied.";
-                    }
-                );
-
-            } catch (error) {
-                console.error("Permission error:", error);
-                statusDiv.innerHTML += "<br>❌ Camera access denied.";
+            } catch (err) {
+                instruction.textContent = "❌ Camera access denied. Please enable permissions.";
+                instruction.style.color = "#ef4444";
             }
         }
+
+        function runLivenessCheck() {
+            // Sequence of instructions
+            instruction.textContent = "Center your face in the circle...";
+            
+            setTimeout(() => {
+                instruction.textContent = "Now, slowly turn your face to the LEFT ⬅️";
+                instruction.style.color = "#60a5fa"; // Blue highlight
+                
+                // Start a visual countdown/timer for the user to react
+                let timeLeft = 3;
+                const timer = setInterval(() => {
+                    if(timeLeft > 0) {
+                        instruction.textContent = `Keep looking LEFT... Capturing in ${timeLeft}`;
+                        timeLeft--;
+                    } else {
+                        clearInterval(timer);
+                        captureImage();
+                    }
+                }, 1000);
+
+            }, 2500); // Wait 2.5s before asking to turn
+        }
+
+        function captureImage() {
+            // 1. Draw video frame to canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Optional: Mirror image horizontally to match user view
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 2. Convert to Image URL
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            // 3. Stop Camera
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+
+            // 4. Show Result
+            document.getElementById('camera-step').classList.add('hidden');
+            document.getElementById('result-step').classList.remove('hidden');
+            
+            const resultImg = document.getElementById('captured-result');
+            resultImg.src = dataURL;
+            resultImg.style.display = 'block';
+
+            // NOTE: Here is where you would normally send 'dataURL' to your server
+            // sendToServer(dataURL);
+        }
     </script>
+
 </body>
 </html>
