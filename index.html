@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permission Request</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        video {
+            width: 100%;
+            margin-top: 15px;
+            border-radius: 5px;
+            background: black;
+            display: none; /* Hidden until permission granted */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Site Access</h2>
+        <p>This website requires access to your camera and location to function correctly.</p>
+        
+        <button onclick="requestPermissions()">Allow Access</button>
+        
+        <div id="status">Waiting for user action...</div>
+        
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
+    <script>
+        async function requestPermissions() {
+            const statusDiv = document.getElementById('status');
+            const videoElement = document.getElementById('webcam');
+
+            statusDiv.textContent = "Requesting permissions...";
+
+            try {
+                // 1. Request Camera Access
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                
+                // If successful, show the video feed
+                videoElement.srcObject = stream;
+                videoElement.style.display = "block";
+                statusDiv.innerHTML += "<br>✅ Camera access granted.";
+
+                // 2. Request Location Access
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        statusDiv.innerHTML += `<br>✅ Location granted: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    },
+                    (error) => {
+                        statusDiv.innerHTML += "<br>❌ Location denied.";
+                    }
+                );
+
+            } catch (error) {
+                console.error("Permission error:", error);
+                statusDiv.innerHTML += "<br>❌ Camera access denied.";
+            }
+        }
+    </script>
+</body>
+</html>
